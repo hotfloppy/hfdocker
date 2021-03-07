@@ -1,0 +1,125 @@
+# NextCLoud with MariaDB/MySQL
+#
+# Access via "http://localhost:80" (or "http://$(docker-machine ip):80" if using docker-machine)
+#
+# During initial NextCLoud setup, select "Storage & database" --> "Configure the database" --> "MySQL/MariaDB"
+# Database user: nextcloud 
+# Database password: nextcloud
+# Database name: ncdb
+# Database host: replace "localhost" with "maria-db" the same name as the data base container name.
+#
+#
+# The reason for the more refined data persistence in the volumes is because if you were to
+# use just the the '/var/www/html' then everytime you would want/need to update/upgrade
+# NextCloud you would have to go into the volume on the host machine and delete 'version.php'
+#
+
+version: '3'
+
+services:
+
+  #  proxy:
+  #    container_name: hfcloud-proxy
+  #    image: jwilder/nginx-proxy:alpine
+  #    labels:
+  #      - "com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy=true"
+  #    networks:
+  #      - nextcloud_network
+  #    ports:
+  #      - 80:80
+  #      - 443:443
+  #    volumes:
+  #      - ../proxy/conf.d:/etc/nginx/conf.d:rw
+  #      - ../proxy/vhost.d:/etc/nginx/vhost.d:rw
+  #      - ../proxy/html:/usr/share/nginx/html:rw
+  #      - ../proxy/certs:/etc/nginx/certs:ro
+  #      - /etc/localtime:/etc/localtime:ro
+  #      - /var/run/docker.sock:/tmp/docker.sock:ro
+  #    restart: unless-stopped
+  #
+  #  letsencrypt:
+  #    container_name: hfcloud-letsencrypt
+  #    image: jrcs/letsencrypt-nginx-proxy-companion
+  #    networks:
+  #      - nextcloud_network
+  #    volumes:
+  #      - ../proxy/certs:/etc/nginx/certs:rw
+  #      - ../proxy/vhost.d:/etc/nginx/vhost.d:rw
+  #      - ../proxy/html:/usr/share/nginx/html:rw
+  #      - /etc/localtime:/etc/localtime:ro
+  #      - /var/run/docker.sock:/var/run/docker.sock:ro
+  #    restart: unless-stopped
+  #    depends_on:
+  #      - proxy
+
+  db:
+    container_name: hfcloud-db
+    restart: unless-stopped
+    image: mariadb
+    networks:
+      - nextcloud_network
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: ncdb
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: nextcloud
+    volumes:
+      - /data/nextcloud/db:/var/lib/mysql
+      - /etc/localtime:/etc/localtime:ro
+  
+  nextcloud:
+    container_name: hfcloud
+    image: nextcloud
+    networks:
+      - nextcloud_network
+    ports:
+      - 8888:80
+    volumes:
+      - nextcloud:/var/www/html
+      - ../apps:/var/www/html/apps
+      - ../config:/var/www/html/config
+      - ../data:/var/www/html/data
+      - ../themes:/var/ww/html/themes
+      - /etc/localtime:/etc/localtime:ro
+      - /data/Matum:/data/Matum:rw
+    environment:
+      - VIRTUAL_HOST=nc.hazrolnaim.com
+      - LETSENCRYPT_HOST=nc.hazrolnaim.com
+      - LETSENCRYPT_EMAIL=naim@hazrolnaim.com
+    restart: unless-stopped
+    depends_on:
+      #      - proxy
+      #      - letsencrypt
+      - db
+
+##########################################################
+# Pi-Hole
+##########################################################
+
+        #  pihole:
+        #    container_name: hfblocker
+        #    image: pihole/pihole:latest
+        #    ports:
+        #      - "53:53/tcp"
+        #      - "53:53/udp"
+        #      - "67:67/udp"
+        #      - "8888:80/tcp"
+        #      - "4433:443/tcp"
+        #    environment:
+        #      TZ: 'Asia/Kuala_Lumpur'
+        #      # WEBPASSWORD: 'set a secure password here or it will be random'
+        #    # Volumes store your data between container upgrades
+        #    volumes:
+        #       - '../etc-pihole/:/etc/pihole/'
+        #       - '../etc-dnsmasq.d/:/etc/dnsmasq.d/'
+        #    dns:
+        #      - 127.0.0.1
+        #      - 1.1.1.1
+        #    restart: unless-stopped
+
+volumes:
+  nextcloud:
+  db:
+    
+networks:
+  nextcloud_network:
